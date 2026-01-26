@@ -3,7 +3,7 @@ import { createSimpleContext } from "@opencode-ai/ui/context"
 import { batch, createMemo, createRoot, onCleanup } from "solid-js"
 import { useParams } from "@solidjs/router"
 import type { FileSelection } from "@/context/file"
-import { Persist, persisted } from "@/utils/persist"
+import { Persist, persisted, removePersisted } from "@/utils/persist"
 import { checksum } from "@opencode-ai/util/encode"
 
 interface PartBase {
@@ -116,9 +116,10 @@ type PromptCacheEntry = {
 
 function createPromptSession(dir: string, id: string | undefined) {
   const legacy = `${dir}/prompt${id ? "/" + id : ""}.v2`
+  const persistedPrompt = Persist.scoped(dir, id, "prompt", [legacy])
 
   const [store, setStore, _, ready] = persisted(
-    Persist.scoped(dir, id, "prompt", [legacy]),
+    persistedPrompt,
     createStore<{
       prompt: Prompt
       cursor?: number
@@ -178,6 +179,7 @@ function createPromptSession(dir: string, id: string | undefined) {
         setStore("prompt", clonePrompt(DEFAULT_PROMPT))
         setStore("cursor", 0)
       })
+      removePersisted(persistedPrompt)
     },
   }
 }
