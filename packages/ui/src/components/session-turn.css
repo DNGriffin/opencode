@@ -227,5 +227,5 @@
 }
 
 [data-slot="session-turn-list"] {
-  gap: 24px;
+  gap: 4px;
 }

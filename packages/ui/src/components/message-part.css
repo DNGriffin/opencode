@@ -132,7 +132,7 @@
     overflow: hidden;
     background: var(--surface-base);
     border: 1px solid var(--border-weak-base);
-    padding: 8px 12px;
+    padding: 6px 12px;
     border-radius: 6px;
 
     [data-highlight="file"] {
@@ -209,7 +209,7 @@
 
 [data-component="text-part"] {
   width: 100%;
-  margin-top: 24px;
+  margin-top: 4px;
 
   [data-slot="text-part-body"] {
     margin-top: 0;
