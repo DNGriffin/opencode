@@ -357,6 +357,7 @@ export function MessageTimeline(props: {
     menuOpen: false,
     pendingRename: false,
     pendingShare: false,
+    pendingDelete: undefined as string | undefined,
   })
   const showTimelineHeader = createMemo(() => showHeader() && (!props.mobileTabs || title.editing))
   let titleRef: HTMLInputElement | undefined
@@ -453,6 +454,7 @@ export function MessageTimeline(props: {
           menuOpen: false,
           pendingRename: false,
           pendingShare: false,
+          pendingDelete: undefined,
         }),
       { defer: true },
     ),
@@ -642,6 +644,7 @@ export function MessageTimeline(props: {
           <Show when={!parentID()}>
             <DropdownMenu
               gutter={4}
+              modal={!nativeMobile}
               placement="bottom-end"
               open={title.menuOpen}
               onOpenChange={(open) => {
@@ -679,6 +682,15 @@ export function MessageTimeline(props: {
                         setShare({ open: true, dismiss: null })
                         setTitle("pendingShare", false)
                       })
+                      return
+                    }
+                    if (title.pendingDelete) {
+                      const id = title.pendingDelete
+                      event.preventDefault()
+                      requestAnimationFrame(() => {
+                        dialog.show(() => <DialogDeleteSession sessionID={id} />)
+                        setTitle("pendingDelete", undefined)
+                      })
                     }
                   }}
                 >
@@ -703,7 +715,11 @@ export function MessageTimeline(props: {
                     <DropdownMenu.ItemLabel>{language.t("common.archive")}</DropdownMenu.ItemLabel>
                   </DropdownMenu.Item>
                   <DropdownMenu.Separator />
-                  <DropdownMenu.Item onSelect={() => dialog.show(() => <DialogDeleteSession sessionID={id} />)}>
+                  <DropdownMenu.Item
+                    onSelect={() => {
+                      setTitle({ pendingDelete: id, menuOpen: false })
+                    }}
+                  >
                     <DropdownMenu.ItemLabel>{language.t("common.delete")}</DropdownMenu.ItemLabel>
                   </DropdownMenu.Item>
                 </DropdownMenu.Content>
@@ -1044,6 +1060,7 @@ export function MessageTimeline(props: {
                           <Show when={!parentID()}>
                             <DropdownMenu
                               gutter={4}
+                              modal={!nativeMobile}
                               placement="bottom-end"
                               open={title.menuOpen}
                               onOpenChange={(open) => {
@@ -1081,6 +1098,15 @@ export function MessageTimeline(props: {
                                         setShare({ open: true, dismiss: null })
                                         setTitle("pendingShare", false)
                                       })
+                                      return
+                                    }
+                                    if (title.pendingDelete) {
+                                      const id = title.pendingDelete
+                                      event.preventDefault()
+                                      requestAnimationFrame(() => {
+                                        dialog.show(() => <DialogDeleteSession sessionID={id} />)
+                                        setTitle("pendingDelete", undefined)
+                                      })
                                     }
                                   }}
                                 >
@@ -1108,7 +1134,9 @@ export function MessageTimeline(props: {
                                   </DropdownMenu.Item>
                                   <DropdownMenu.Separator />
                                   <DropdownMenu.Item
-                                    onSelect={() => dialog.show(() => <DialogDeleteSession sessionID={id} />)}
+                                    onSelect={() => {
+                                      setTitle({ pendingDelete: id, menuOpen: false })
+                                    }}
                                   >
                                     <DropdownMenu.ItemLabel>{language.t("common.delete")}</DropdownMenu.ItemLabel>
                                   </DropdownMenu.Item>
