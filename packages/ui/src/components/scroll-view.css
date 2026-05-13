@@ -17,6 +17,11 @@
   flex-direction: unset;
 }
 
+:root[data-platform="ios"] .scroll-view__viewport,
+:root[data-platform="android"] .scroll-view__viewport {
+  overscroll-behavior-y: contain;
+}
+
 .scroll-view__viewport::-webkit-scrollbar {
   display: none;
 }

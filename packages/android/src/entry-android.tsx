@@ -262,6 +262,12 @@ const App = () => {
     document.documentElement.dataset.platform = "android"
     void refreshVoice()
 
+    const syncViewport = () => {
+      const height = window.visualViewport?.height ?? window.innerHeight
+      document.documentElement.style.setProperty("--android-viewport-height", `${height}px`)
+    }
+    syncViewport()
+
     const handleClick = (event: MouseEvent) => {
       const link = (event.target as HTMLElement | null)?.closest("a.external-link") as HTMLAnchorElement | null
       if (!link?.href) return
@@ -291,10 +297,16 @@ const App = () => {
 
     document.addEventListener("click", handleClick)
     window.addEventListener("focus", onFocus)
+    window.addEventListener("resize", syncViewport)
+    window.visualViewport?.addEventListener("resize", syncViewport)
+    window.visualViewport?.addEventListener("scroll", syncViewport)
     document.addEventListener("visibilitychange", onVisible)
     onCleanup(() => {
       document.removeEventListener("click", handleClick)
       window.removeEventListener("focus", onFocus)
+      window.removeEventListener("resize", syncViewport)
+      window.visualViewport?.removeEventListener("resize", syncViewport)
+      window.visualViewport?.removeEventListener("scroll", syncViewport)
       document.removeEventListener("visibilitychange", onVisible)
       stopListening()
       stopVoiceState()

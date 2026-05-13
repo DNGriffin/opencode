@@ -191,6 +191,17 @@ export function createAutoScroll(options: AutoScrollOptions) {
     },
   )
 
+  createResizeObserver(
+    () => store.scrollRef,
+    () => {
+      const el = store.scrollRef
+      if (!el || !canScroll(el)) return
+      if (!active()) return
+      if (store.userScrolled) return
+      scrollToBottom(false)
+    },
+  )
+
   createEffect(
     on(options.working, (working: boolean) => {
       settling = false

@@ -244,6 +244,7 @@ export function MessageTimeline(props: {
   const language = useLanguage()
   const { params, sessionKey } = useSessionKey()
   const platform = usePlatform()
+  const nativeMobile = platform.platform === "ios" || platform.platform === "android"
 
   const rendered = createMemo(() => props.renderedUserMessages.map((message) => message.id))
   const sessionID = createMemo(() => params.id)
@@ -1001,12 +1002,14 @@ export function MessageTimeline(props: {
             <div
               role="log"
               data-slot="session-turn-list"
-              class="flex flex-col items-start justify-start pb-16 transition-[margin]"
+              class="flex flex-col items-start justify-start transition-[margin]"
               classList={{
                 "w-full": true,
                 "md:max-w-200 md:mx-auto 2xl:max-w-[1000px]": props.centered,
                 "mt-0.5": props.centered,
                 "mt-0": !props.centered,
+                "pb-4": nativeMobile,
+                "pb-16": !nativeMobile,
               }}
             >
               <Show when={props.turnStart > 0 || props.historyMore}>
@@ -1048,8 +1051,8 @@ export function MessageTimeline(props: {
                         "md:max-w-200 2xl:max-w-[1000px]": props.centered,
                       }}
                       style={{
-                        "content-visibility": active() ? undefined : "auto",
-                        "contain-intrinsic-size": active() ? undefined : "auto 500px",
+                        "content-visibility": active() || nativeMobile ? undefined : "auto",
+                        "contain-intrinsic-size": active() || nativeMobile ? undefined : "auto 500px",
                       }}
                     >
                       <Show when={commentCount() > 0}>
