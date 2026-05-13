@@ -23,7 +23,6 @@ import { selectionFromLines, useFile, type FileSelection, type SelectedLineRange
 import { createStore } from "solid-js/store"
 import { ResizeHandle } from "@opencode-ai/ui/resize-handle"
 import { Select } from "@opencode-ai/ui/select"
-import { Tabs } from "@opencode-ai/ui/tabs"
 import { createAutoScroll } from "@opencode-ai/ui/hooks"
 import { previewSelectedLines } from "@opencode-ai/ui/pierre/selection-bridge"
 import { Button } from "@opencode-ai/ui/button"
@@ -1961,34 +1960,6 @@ export default function Page() {
       {sessionSync() ?? ""}
       <SessionHeader />
       <div class="flex-1 min-h-0 flex flex-col md:flex-row">
-        <Show when={!isDesktop() && !!params.id}>
-          {/* UPSTREAM-DIVERGENCE: Mobile uses a compact chat switcher so the primary flow keeps more vertical space. */}
-          <Tabs value={store.mobileTab} class="h-auto">
-            <Tabs.List class="!h-9 !px-2 !py-1 !bg-background-stronger">
-              <Tabs.Trigger
-                value="session"
-                class="!w-1/2 !max-w-none !h-full text-13-medium"
-                classes={{ button: "w-full !h-full !px-2 !py-0" }}
-                onClick={() => setStore("mobileTab", "session")}
-              >
-                {language.t("session.tab.session")}
-              </Tabs.Trigger>
-              <Tabs.Trigger
-                value="changes"
-                class="!w-1/2 !max-w-none !h-full !border-r-0 text-13-medium"
-                classes={{ button: "w-full !h-full !px-2 !py-0" }}
-                onClick={() => setStore("mobileTab", "changes")}
-              >
-                {hasReview()
-                  ? `${reviewCount()} ${language.t(
-                      reviewCount() === 1 ? "session.review.change.one" : "session.review.change.other",
-                    )}`
-                  : language.t("session.review.change.other")}
-              </Tabs.Trigger>
-            </Tabs.List>
-          </Tabs>
-        </Show>
-
         {/* Session panel */}
         <div
           classList={{
@@ -2006,6 +1977,19 @@ export default function Page() {
                 <Show when={messagesReady()}>
                   <MessageTimeline
                     mobileChanges={mobileChanges()}
+                    mobileTabs={
+                      !isDesktop() && params.id
+                        ? {
+                            value: store.mobileTab,
+                            changesLabel: hasReview()
+                              ? `${reviewCount()} ${language.t(
+                                  reviewCount() === 1 ? "session.review.change.one" : "session.review.change.other",
+                                )}`
+                              : language.t("session.review.change.other"),
+                            onChange: (value) => setStore("mobileTab", value),
+                          }
+                        : undefined
+                    }
                     mobileFallback={reviewContent({
                       diffStyle: "unified",
                       classes: {
