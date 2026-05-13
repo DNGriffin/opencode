@@ -132,7 +132,7 @@
     overflow: hidden;
     background: var(--surface-base);
     border: 1px solid var(--border-weak-base);
-    padding: 6px 12px;
+    padding: 4px 10px;
     border-radius: 6px;
 
     [data-highlight="file"] {
@@ -147,8 +147,8 @@
   }
 
   [data-slot="user-message-copy-wrapper"] {
-    min-height: 24px;
-    margin-top: 4px;
+    min-height: 20px;
+    margin-top: 2px;
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -216,8 +216,8 @@
   }
 
   [data-slot="text-part-copy-wrapper"] {
-    min-height: 24px;
-    margin-top: 4px;
+    min-height: 20px;
+    margin-top: 2px;
     display: flex;
     align-items: center;
     justify-content: flex-start;

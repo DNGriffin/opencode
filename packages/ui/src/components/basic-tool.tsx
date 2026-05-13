@@ -37,9 +37,58 @@ export interface BasicToolProps {
   onTriggerClick?: JSX.EventHandlerUnion<HTMLElement, MouseEvent>
   triggerHref?: string
   clickable?: boolean
+  multilineTrigger?: boolean
+}
+
+export interface ToolSummaryTriggerProps {
+  title: string
+  subject?: string
+  preview?: JSX.Element
+  status?: string
+  failed?: boolean
 }
 
 const SPRING = { type: "spring" as const, visualDuration: 0.35, bounce: 0 }
+
+export function ToolSummaryTrigger(props: ToolSummaryTriggerProps) {
+  const pending = () => props.status === "pending" || props.status === "running"
+  const state = () => {
+    if (props.failed || props.status === "error") return "error"
+    if (pending()) return "running"
+    if (props.status === "completed") return "success"
+    return "neutral"
+  }
+
+  return (
+    <div data-component="tool-summary-trigger" data-state={state()}>
+      <div data-slot="tool-summary-main">
+        <span data-slot="tool-summary-dot" />
+        <span data-slot="tool-summary-call">
+          <span data-slot="tool-summary-name">
+            <TextShimmer text={props.title} active={pending()} />
+          </span>
+          <Show when={props.subject}>
+            {(subject) => (
+              <>
+                <span data-slot="tool-summary-paren">(</span>
+                <span data-slot="tool-summary-subject">{subject()}</span>
+                <span data-slot="tool-summary-paren">)</span>
+              </>
+            )}
+          </Show>
+        </span>
+      </div>
+      <Show when={!pending() && props.preview}>
+        {(preview) => (
+          <div data-slot="tool-summary-preview">
+            <span data-slot="tool-summary-branch" aria-hidden="true" />
+            <span data-slot="tool-summary-preview-text">{preview()}</span>
+          </div>
+        )}
+      </Show>
+    </div>
+  )
+}
 
 export function BasicTool(props: BasicToolProps) {
   const [state, setState] = createStore({
@@ -129,6 +178,7 @@ export function BasicTool(props: BasicToolProps) {
       data-component="tool-trigger"
       data-clickable={props.clickable ? "true" : undefined}
       data-hide-details={props.hideDetails ? "true" : undefined}
+      data-multiline={props.multilineTrigger ? "true" : undefined}
     >
       <div data-slot="basic-tool-tool-trigger-content">
         <div data-slot="basic-tool-tool-info">
@@ -202,6 +252,7 @@ export function BasicTool(props: BasicToolProps) {
         fallback={
           <Collapsible.Trigger
             data-hide-details={props.hideDetails ? "true" : undefined}
+            data-multiline={props.multilineTrigger ? "true" : undefined}
             onClick={props.onTriggerClick}
           >
             {trigger()}
@@ -213,6 +264,7 @@ export function BasicTool(props: BasicToolProps) {
             as="a"
             href={href()}
             data-hide-details={props.hideDetails ? "true" : undefined}
+            data-multiline={props.multilineTrigger ? "true" : undefined}
             onClick={props.onTriggerClick}
           >
             {trigger()}

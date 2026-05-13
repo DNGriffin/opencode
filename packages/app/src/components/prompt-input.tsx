@@ -134,7 +134,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   let slashPopoverRef!: HTMLDivElement
 
   const mirror = { input: false }
-  const inset = 56
+  const inset = 44
   const space = `${inset}px`
 
   const scrollCursorIntoView = () => {

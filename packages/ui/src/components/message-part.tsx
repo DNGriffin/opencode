@@ -5,7 +5,6 @@ import {
   createSignal,
   For,
   Match,
-  onMount,
   Show,
   Switch,
   onCleanup,
@@ -34,7 +33,7 @@ import { useData } from "../context"
 import { useFileComponent } from "../context/file"
 import { useDialog } from "../context/dialog"
 import { type UiI18n, useI18n } from "../context/i18n"
-import { BasicTool, GenericTool } from "./basic-tool"
+import { BasicTool, GenericTool, ToolSummaryTrigger } from "./basic-tool"
 import { Accordion } from "./accordion"
 import { StickyAccordionHeader } from "./sticky-accordion-header"
 import { Collapsible } from "./collapsible"
@@ -53,43 +52,9 @@ import { Spinner } from "./spinner"
 import { TextShimmer } from "./text-shimmer"
 import { AnimatedCountList } from "./tool-count-summary"
 import { ToolStatusTitle } from "./tool-status-title"
-import { patchFiles } from "./apply-patch-file"
-import { animate } from "motion"
+import { patchFiles, type ApplyPatchFile } from "./apply-patch-file"
 import { useLocation } from "@solidjs/router"
 import { attached, inline, kind } from "./message-file"
-
-function ShellSubmessage(props: { text: string; animate?: boolean }) {
-  let widthRef: HTMLSpanElement | undefined
-  let valueRef: HTMLSpanElement | undefined
-
-  onMount(() => {
-    if (!props.animate) return
-    requestAnimationFrame(() => {
-      if (widthRef) {
-        animate(widthRef, { width: "auto" }, { type: "spring", visualDuration: 0.25, bounce: 0 })
-      }
-      if (valueRef) {
-        animate(valueRef, { opacity: 1, filter: "blur(0px)" }, { duration: 0.32, ease: [0.16, 1, 0.3, 1] })
-      }
-    })
-  })
-
-  return (
-    <span data-component="shell-submessage">
-      <span ref={widthRef} data-slot="shell-submessage-width" style={{ width: props.animate ? "0px" : undefined }}>
-        <span data-slot="basic-tool-tool-subtitle">
-          <span
-            ref={valueRef}
-            data-slot="shell-submessage-value"
-            style={props.animate ? { opacity: 0, filter: "blur(2px)" } : undefined}
-          >
-            {props.text}
-          </span>
-        </span>
-      </span>
-    </span>
-  )
-}
 
 interface Diagnostic {
   range: {
@@ -376,7 +341,7 @@ export function getToolInfo(tool: string, input: any = {}): ToolInfo {
     case "bash":
       return {
         icon: "console",
-        title: i18n.t("ui.tool.shell"),
+        title: "Bash",
         subtitle: input.description,
       }
     case "edit":
@@ -418,6 +383,73 @@ export function getToolInfo(tool: string, input: any = {}): ToolInfo {
       return {
         icon: "mcp",
         title: tool,
+      }
+  }
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value : undefined
+}
+
+function firstOutputLine(value: unknown) {
+  const text = stringValue(value)
+  if (!text) return undefined
+  return stripAnsi(text)
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => line.length > 0)
+}
+
+function toolFailed(status: string | undefined, metadata: Record<string, any>) {
+  if (status === "error") return true
+  const exit = metadata.exit ?? metadata.exitCode
+  return typeof exit === "number" && exit !== 0
+}
+
+function plural(count: number, singular: string, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`
+}
+
+function patchChangeSummary(file: ApplyPatchFile) {
+  const changes = []
+  if (file.additions) changes.push(plural(file.additions, "addition"))
+  if (file.deletions) changes.push(plural(file.deletions, "removal"))
+  return changes.length ? changes.join(" and ") : "no line changes"
+}
+
+function applyPatchSummary(file: ApplyPatchFile | undefined, count: number, output: unknown) {
+  if (!file) {
+    return {
+      title: "apply_patch",
+      subject: count ? plural(count, "file") : undefined,
+      preview: count ? `Updated ${plural(count, "file")}` : firstOutputLine(output),
+    }
+  }
+
+  switch (file.type) {
+    case "add":
+      return {
+        title: "apply_patch",
+        subject: file.relativePath,
+        preview: `Created ${file.relativePath} with ${plural(file.additions, "line")}`,
+      }
+    case "delete":
+      return {
+        title: "apply_patch",
+        subject: file.relativePath,
+        preview: `Deleted ${file.relativePath}`,
+      }
+    case "move":
+      return {
+        title: "apply_patch",
+        subject: file.relativePath,
+        preview: `Moved ${file.relativePath}`,
+      }
+    case "update":
+      return {
+        title: "apply_patch",
+        subject: file.relativePath,
+        preview: `Updated ${file.relativePath} with ${patchChangeSummary(file)}`,
       }
   }
 }
@@ -1821,12 +1853,13 @@ ToolRegistry.register({
   name: "bash",
   render(props) {
     const i18n = useI18n()
-    const pending = () => props.status === "pending" || props.status === "running"
-    const sawPending = pending()
+    const command = createMemo(() => stringValue(props.input.command) ?? stringValue(props.metadata.command) ?? "")
+    const output = createMemo(() => stringValue(props.output) ?? stringValue(props.metadata.output) ?? "")
+    const preview = createMemo(() => firstOutputLine(output()))
+    const failed = createMemo(() => toolFailed(props.status, props.metadata))
     const text = createMemo(() => {
-      const cmd = props.input.command ?? props.metadata.command ?? ""
-      const out = stripAnsi(props.output || props.metadata.output || "")
-      return `$ ${cmd}${out ? "\n\n" + out : ""}`
+      const out = stripAnsi(output())
+      return `$ ${command()}${out ? "\n\n" + out : ""}`
     })
     const [copied, setCopied] = createSignal(false)
 
@@ -1842,17 +1875,15 @@ ToolRegistry.register({
       <BasicTool
         {...props}
         icon="console"
+        multilineTrigger
         trigger={
-          <div data-slot="basic-tool-tool-info-structured">
-            <div data-slot="basic-tool-tool-info-main">
-              <span data-slot="basic-tool-tool-title">
-                <TextShimmer text={i18n.t("ui.tool.shell")} active={pending()} />
-              </span>
-              <Show when={!pending() && props.input.description}>
-                <ShellSubmessage text={props.input.description} animate={sawPending} />
-              </Show>
-            </div>
-          </div>
+          <ToolSummaryTrigger
+            title="Bash"
+            subject={command()}
+            preview={preview()}
+            status={props.status}
+            failed={failed()}
+          />
         }
       >
         <div data-component="bash-output">
@@ -2020,12 +2051,13 @@ ToolRegistry.register({
     const i18n = useI18n()
     const fileComponent = useFileComponent()
     const files = createMemo(() => patchFiles(props.metadata.files))
-    const pending = createMemo(() => props.status === "pending" || props.status === "running")
     const single = createMemo(() => {
       const list = files()
       if (list.length !== 1) return
       return list[0]
     })
+    const summary = createMemo(() => applyPatchSummary(single(), files().length, props.output))
+    const failed = createMemo(() => toolFailed(props.status, props.metadata))
     const [expanded, setExpanded] = createSignal<string[]>([])
     let seeded = false
 
@@ -2037,12 +2069,6 @@ ToolRegistry.register({
       setExpanded(list.filter((f) => f.type !== "delete").map((f) => f.filePath))
     })
 
-    const subtitle = createMemo(() => {
-      const count = files().length
-      if (count === 0) return ""
-      return `${count} ${i18n.t(count > 1 ? "ui.common.file.other" : "ui.common.file.one")}`
-    })
-
     return (
       <Show
         when={single()}
@@ -2052,10 +2078,16 @@ ToolRegistry.register({
               {...props}
               icon="code-lines"
               defer
-              trigger={{
-                title: i18n.t("ui.tool.patch"),
-                subtitle: subtitle(),
-              }}
+              multilineTrigger
+              trigger={
+                <ToolSummaryTrigger
+                  title={summary().title}
+                  subject={summary().subject}
+                  preview={summary().preview}
+                  status={props.status}
+                  failed={failed()}
+                />
+              }
             >
               <Show when={files().length > 0}>
                 <Accordion
@@ -2144,29 +2176,15 @@ ToolRegistry.register({
             {...props}
             icon="code-lines"
             defer
+            multilineTrigger
             trigger={
-              <div data-component="edit-trigger">
-                <div data-slot="message-part-title-area">
-                  <div data-slot="message-part-title">
-                    <span data-slot="message-part-title-text">
-                      <TextShimmer text={i18n.t("ui.tool.patch")} active={pending()} />
-                    </span>
-                    <Show when={!pending()}>
-                      <span data-slot="message-part-title-filename">{getFilename(single()!.relativePath)}</span>
-                    </Show>
-                  </div>
-                  <Show when={!pending() && single()!.relativePath.includes("/")}>
-                    <div data-slot="message-part-path">
-                      <span data-slot="message-part-directory">{getDirectory(single()!.relativePath)}</span>
-                    </div>
-                  </Show>
-                </div>
-                <div data-slot="message-part-actions">
-                  <Show when={!pending()}>
-                    <DiffChanges changes={{ additions: single()!.additions, deletions: single()!.deletions }} />
-                  </Show>
-                </div>
-              </div>
+              <ToolSummaryTrigger
+                title={summary().title}
+                subject={summary().subject}
+                preview={summary().preview}
+                status={props.status}
+                failed={failed()}
+              />
             }
           >
             <ToolFileAccordion

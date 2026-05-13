@@ -67,6 +67,14 @@
       align-items: stretch;
     }
 
+    &[data-multiline="true"] {
+      height: auto;
+      min-height: 36px;
+      align-items: flex-start;
+      padding: 2px 0;
+      text-align: left;
+    }
+
     [data-slot="collapsible-arrow"] {
       flex-shrink: 0;
       width: 24px;

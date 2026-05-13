@@ -33,6 +33,17 @@
     gap: 8px;
   }
 
+  &[data-multiline="true"] {
+    align-items: flex-start;
+
+    [data-slot="basic-tool-tool-trigger-content"],
+    [data-slot="basic-tool-tool-info"] {
+      flex: 1 1 auto;
+      width: 100%;
+      max-width: 100%;
+    }
+  }
+
   [data-slot="basic-tool-tool-indicator"] {
     width: 16px;
     height: 16px;
@@ -178,6 +189,100 @@
     display: inline-flex;
     align-items: center;
     flex-shrink: 0;
+  }
+}
+
+[data-component="tool-summary-trigger"] {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  font-family: var(--font-family-mono);
+  font-size: 14px;
+  line-height: var(--line-height-large);
+  color: var(--text-base);
+  text-align: left;
+
+  [data-slot="tool-summary-main"] {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  [data-slot="tool-summary-dot"] {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    flex-shrink: 0;
+    background: var(--icon-weak-base);
+    transform: translateY(-1px);
+  }
+
+  &[data-state="success"] [data-slot="tool-summary-dot"] {
+    background: var(--icon-success-base);
+  }
+
+  &[data-state="error"] [data-slot="tool-summary-dot"] {
+    background: var(--icon-critical-base);
+  }
+
+  &[data-state="running"] [data-slot="tool-summary-dot"] {
+    background: var(--icon-warning-base);
+  }
+
+  [data-slot="tool-summary-call"] {
+    display: flex;
+    align-items: baseline;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  [data-slot="tool-summary-name"] {
+    flex-shrink: 0;
+    font-weight: var(--font-weight-medium);
+    color: var(--text-strong);
+  }
+
+  [data-slot="tool-summary-paren"] {
+    flex-shrink: 0;
+    color: var(--text-base);
+  }
+
+  [data-slot="tool-summary-subject"] {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-base);
+  }
+
+  [data-slot="tool-summary-preview"] {
+    display: grid;
+    grid-template-columns: 16px minmax(0, 1fr);
+    gap: 4px;
+    align-items: start;
+    padding-left: 4px;
+    font-size: 13px;
+    color: var(--text-base);
+  }
+
+  [data-slot="tool-summary-branch"] {
+    width: 10px;
+    height: 13px;
+    border-left: 1px solid var(--border-weak-hover);
+    border-bottom: 1px solid var(--border-weak-hover);
+    transform: translate(4px, -4px);
+  }
+
+  [data-slot="tool-summary-preview-text"] {
+    justify-self: start;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
