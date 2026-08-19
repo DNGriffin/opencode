@@ -46,6 +46,7 @@ import { TerminalProvider } from "@/context/terminal"
 import DirectoryLayout from "@/pages/directory-layout"
 import Layout from "@/pages/layout"
 import { ErrorPage } from "./pages/error"
+import { usePlatform } from "@/context/platform"
 import { useCheckServerHealth } from "./utils/server-health"
 
 // UPSTREAM-DIVERGENCE-FILE: This shared app entrypoint carries the fork-only mobile push providers
@@ -176,18 +177,18 @@ function ConnectionGate(props: ParentProps<{ disableHealthCheck?: boolean }>) {
   // non-http connections, otherwise fails instantly
   const [startupHealthCheck, healthCheckActions] = createResource(() =>
     props.disableHealthCheck
-      ? true
+      ? { healthy: true } as const
       : Effect.gen(function* () {
-          if (!server.current) return true
+          if (!server.current) return { healthy: true } as const
           const { http, type } = server.current
 
           while (true) {
             const res = yield* Effect.promise(() => checkServerHealth(http))
-            if (res.healthy) return true
-            if (checkMode() === "background" || type === "http") return false
+            if (res.healthy) return { healthy: true } as const
+            if (checkMode() === "background" || type === "http") return res
           }
         }).pipe(
-          Effect.timeoutOrElse({ duration: "10 seconds", orElse: () => Effect.succeed(false) }),
+          Effect.timeoutOrElse({ duration: "10 seconds", orElse: () => Effect.succeed({ healthy: false, errorType: "timeout" } as const) }),
           Effect.ensuring(Effect.sync(() => setCheckMode("background"))),
           Effect.runPromise,
         ),
@@ -209,11 +210,12 @@ function ConnectionGate(props: ParentProps<{ disableHealthCheck?: boolean }>) {
           </div>
         }
       >*/}
-      {checkMode() === "blocking" ? startupHealthCheck() : startupHealthCheck.latest}
       <Show
-        when={startupHealthCheck()}
+        when={startupHealthCheck()?.healthy}
         fallback={
           <ConnectionError
+            errorType={(checkMode() === "blocking" ? startupHealthCheck() : startupHealthCheck.latest)?.errorType}
+            errorDetail={(checkMode() === "blocking" ? startupHealthCheck() : startupHealthCheck.latest)?.errorDetail}
             onRetry={() => {
               if (checkMode() === "background") void healthCheckActions.refetch()
             }}
@@ -232,13 +234,25 @@ function ConnectionGate(props: ParentProps<{ disableHealthCheck?: boolean }>) {
   )
 }
 
-function ConnectionError(props: { onRetry?: () => void; onServerSelected?: (key: ServerConnection.Key) => void }) {
+function ConnectionError(props: { errorType?: string; errorDetail?: string; onRetry?: () => void; onServerSelected?: (key: ServerConnection.Key) => void }) {
   const language = useLanguage()
   const server = useServer()
+  const platform = usePlatform()
   const others = () => server.list.filter((s) => ServerConnection.key(s) !== server.key)
   const name = createMemo(() => server.name || server.key)
-  const serverToken = "\u0000server\u0000"
-  const unreachable = createMemo(() => language.t("app.server.unreachable", { server: serverToken }).split(serverToken))
+  
+  const errorMessage = createMemo(() => {
+    switch (props.errorType) {
+      case "auth":
+        return "Authentication failed. The server password may be incorrect."
+      case "invalid-url":
+        return "The server URL is invalid or malformed."
+      case "timeout":
+        return "The connection timed out while trying to reach the server."
+      default:
+        return "The server is unreachable or refused the connection."
+    }
+  })
 
   const timer = setInterval(() => props.onRetry?.(), 1000)
   onCleanup(() => clearInterval(timer))
@@ -248,16 +262,20 @@ function ConnectionError(props: { onRetry?: () => void; onServerSelected?: (key:
       <div class="flex flex-col items-center max-w-md text-center">
         <Splash class="w-12 h-15 mb-4" />
         <p class="text-14-regular text-text-base">
-          {unreachable()[0]}
-          <span class="text-text-strong font-medium">{name()}</span>
-          {unreachable()[1]}
+          Cannot connect to <span class="text-text-strong font-medium">{name()}</span>
         </p>
-        <p class="mt-1 text-12-regular text-text-weak">{language.t("app.server.retrying")}</p>
+        <p class="mt-2 text-14-regular text-text-strong">
+          {errorMessage()}
+        </p>
+        <Show when={props.errorDetail}>
+          <p class="mt-1 text-12-regular text-text-weak opacity-50">{props.errorDetail}</p>
+        </Show>
+        <p class="mt-4 text-12-regular text-text-weak">{language.t("app.server.retrying")}</p>
       </div>
-      <Show when={others().length > 0}>
-        <div class="flex flex-col gap-2 w-full max-w-sm">
+      <div class="flex flex-col gap-2 w-full max-w-sm">
+        <Show when={others().length > 0}>
           <span class="text-12-regular text-text-base text-center">{language.t("app.server.otherServers")}</span>
-          <div class="flex flex-col gap-1 bg-surface-base rounded-lg p-2">
+          <div class="flex flex-col gap-1 bg-surface-base rounded-lg p-2 mb-4">
             <For each={others()}>
               {(conn) => {
                 const key = ServerConnection.key(conn)
@@ -273,8 +291,20 @@ function ConnectionError(props: { onRetry?: () => void; onServerSelected?: (key:
               }}
             </For>
           </div>
-        </div>
-      </Show>
+        </Show>
+        <button
+          type="button"
+          class="flex items-center justify-center gap-3 w-full px-3 py-3 rounded-md bg-surface-raised-base hover:bg-surface-raised-base-hover border border-border-base transition-colors"
+          onClick={() => {
+            if (platform.setDefaultServer) {
+              platform.setDefaultServer(null)
+              if (platform.restart) platform.restart()
+            }
+          }}
+        >
+          <span class="text-14-medium text-text-strong">Change Server</span>
+        </button>
+      </div>
     </div>
   )
 }
