@@ -2,7 +2,7 @@ import { usePlatform } from "@/context/platform"
 import type { ServerConnection } from "@/context/server"
 import { createSdkForServer } from "./server"
 
-export type ServerHealth = { healthy: boolean; version?: string }
+export type ServerHealth = { healthy: boolean; version?: string; errorType?: string; errorDetail?: string }
 
 interface CheckServerHealthOptions {
   timeoutMs?: number
@@ -75,10 +75,17 @@ export async function checkServerHealth(
   const retryCount = opts?.retryCount ?? defaultRetryCount
   const retryDelayMs = opts?.retryDelayMs ?? defaultRetryDelayMs
   const next = (count: number, error: unknown) => {
-    if (count >= retryCount || !retryable(error, signal)) return Promise.resolve({ healthy: false } as const)
+    if (count >= retryCount || !retryable(error, signal)) {
+      let type = "unreachable";
+      if (error instanceof TypeError && error.message.includes("Invalid URL")) type = "invalid-url";
+      else if (error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError")) type = "timeout";
+      else if ((error as any)?.name === "ClientError" && (error as any)?.reason === "UnexpectedStatus" && ((error as any)?.cause as any)?.status === 401) type = "auth";
+      else if ((error as any)?.name === "ClientError") type = (error as any)?.reason;
+      return Promise.resolve({ healthy: false, errorType: type, errorDetail: error instanceof Error ? error.message : String(error) } as const)
+    }
     return wait(retryDelayMs * (count + 1), signal)
       .then(() => attempt(count + 1))
-      .catch(() => ({ healthy: false }))
+      .catch(() => ({ healthy: false, errorType: 'unreachable' }))
   }
   const attempt = (count: number): Promise<ServerHealth> =>
     createSdkForServer({
